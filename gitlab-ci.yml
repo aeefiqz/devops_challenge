@@ -1,0 +1,249 @@
+
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+
+
+variables:
+  AWS_DEFAULT_REGION: ap-southeast-1
+  TF_ROOT: eks-cluster
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  EKS_DEV: eks-dev
+  EKS_STAGING: eks-staging
+  EKS_UAT: eks-uat
+  EKS_PROD: eks-prod
+
+stages:
+  - build
+  - test
+  - deploy
+  - rollback
+
+
+# ---------- Build ----------
+
+build-go:
+  stage: build
+  image: golang:1.23-alpine
+  script:
+    - go mod download
+    - go build -o /tmp/counter ./app
+  artifacts:
+    paths:
+      - /tmp/counter
+    expire_in: 1 hour
+
+build-docker:
+  stage: build
+  image: docker:24
+  services:
+    - docker:24-dind
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker build -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" -t "$CI_REGISTRY_IMAGE:latest" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+    - docker push "$CI_REGISTRY_IMAGE:latest"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main" || $CI_PIPELINE_SOURCE == "merge_request_event"
+
+.deploy-infra-base:
+  stage: deploy
+  image:
+    name: hashicorp/terraform:1.9
+    entrypoint: [""]
+  before_script:
+    - cd $TF_ROOT
+    - terraform init -input=false
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+deploy-infra-dev:
+  extends: .deploy-infra-base
+  script:
+    - terraform plan -var-file=environment/dev/dev.tfvars -input=false -out=tfplan
+    - terraform apply -input=false -auto-approve tfplan
+  environment:
+    name: dev
+
+deploy-infra-staging:
+  extends: .deploy-infra-base
+  when: manual
+  script:
+    - terraform plan -var-file=environment/staging/staging.tfvars -input=false -out=tfplan
+    - terraform apply -input=false -auto-approve tfplan
+  environment:
+    name: staging
+
+deploy-infra-uat:
+  extends: .deploy-infra-base
+  when: manual
+  script:
+    - terraform plan -var-file=environment/uat/uat.tfvars -input=false -out=tfplan
+    - terraform apply -input=false -auto-approve tfplan
+  environment:
+    name: uat
+
+deploy-infra-prod:
+  extends: .deploy-infra-base
+  when: manual
+  script:
+    - terraform plan -var-file=environment/prod/prod.tfvars -input=false -out=tfplan
+    - terraform apply -input=false -auto-approve tfplan
+  environment:
+    name: production
+
+# ---------- Deploy application (Kubernetes) ----------
+
+.deploy-app-base:
+  stage: deploy
+  image:
+    name: alpine:3.21
+    entrypoint: [""]
+  before_script:
+    - apk add --no-cache aws-cli kubectl gettext
+    - aws eks update-kubeconfig --name $EKS_CLUSTER --region $AWS_DEFAULT_REGION
+    - export KUBECONFIG=~/.kube/config
+    - chmod +x scripts/deploy-app.sh
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+deploy-app-dev:
+  extends: .deploy-app-base
+  variables:
+    EKS_CLUSTER: $EKS_DEV
+  script:
+    - ./scripts/deploy-app.sh "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+  environment:
+    name: dev
+  needs:
+    - build-docker
+
+deploy-app-staging:
+  extends: .deploy-app-base
+  when: manual
+  variables:
+    EKS_CLUSTER: $EKS_STAGING
+  script:
+    - ./scripts/deploy-app.sh "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+  environment:
+    name: staging
+  needs:
+    - build-docker
+
+deploy-app-uat:
+  extends: .deploy-app-base
+  when: manual
+  variables:
+    EKS_CLUSTER: $EKS_UAT
+  script:
+    - ./scripts/deploy-app.sh "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+  environment:
+    name: uat
+  needs:
+    - build-docker
+
+deploy-app-prod:
+  extends: .deploy-app-base
+  when: manual
+  variables:
+    EKS_CLUSTER: $EKS_PROD
+  script:
+    - ./scripts/deploy-app.sh "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+  environment:
+    name: production
+  needs:
+    - build-docker
+
+# ---------- Rollback ----------
+
+.rollback-app-base:
+  stage: rollback
+  when: manual
+  image:
+    name: alpine:3.21
+    entrypoint: [""]
+  before_script:
+    - apk add --no-cache aws-cli kubectl
+    - aws eks update-kubeconfig --name $EKS_CLUSTER --region $AWS_DEFAULT_REGION
+    - export KUBECONFIG=~/.kube/config
+    - chmod +x scripts/rollback-app.sh
+  script:
+    - ./scripts/rollback-app.sh
+
+rollback-app-dev:
+  extends: .rollback-app-base
+  variables:
+    EKS_CLUSTER: $EKS_DEV
+  environment:
+    name: dev
+
+rollback-app-staging:
+  extends: .rollback-app-base
+  variables:
+    EKS_CLUSTER: $EKS_STAGING
+  environment:
+    name: staging
+
+rollback-app-uat:
+  extends: .rollback-app-base
+  variables:
+    EKS_CLUSTER: $EKS_UAT
+  environment:
+    name: uat
+
+rollback-app-prod:
+  extends: .rollback-app-base
+  variables:
+    EKS_CLUSTER: $EKS_PROD
+  environment:
+    name: production
+
+.rollback-infra-base:
+  stage: rollback
+  when: manual
+  image:
+    name: hashicorp/terraform:1.9
+    entrypoint: [""]
+  before_script:
+    - cd $TF_ROOT
+    - terraform init -input=false
+  script:
+    - git fetch origin $CI_COMMIT_BRANCH
+    - git checkout "${ROLLBACK_COMMIT:-$CI_COMMIT_BEFORE_SHA}"
+    - terraform init -input=false
+    - terraform plan -var-file=$TF_VAR_FILE -input=false -out=tfplan
+    - terraform apply -input=false -auto-approve tfplan
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+rollback-infra-dev:
+  extends: .rollback-infra-base
+  variables:
+    TF_VAR_FILE: environment/dev/dev.tfvars
+  environment:
+    name: dev
+
+rollback-infra-staging:
+  extends: .rollback-infra-base
+  variables:
+    TF_VAR_FILE: environment/staging/staging.tfvars
+  environment:
+    name: staging
+
+rollback-infra-uat:
+  extends: .rollback-infra-base
+  variables:
+    TF_VAR_FILE: environment/uat/uat.tfvars
+  environment:
+    name: uat
+
+rollback-infra-prod:
+  extends: .rollback-infra-base
+  variables:
+    TF_VAR_FILE: environment/prod/prod.tfvars
+  environment:
+    name: production

@@ -1,0 +1,19 @@
+# Git
+.git
+.gitignore
+
+# Local build artifacts
+app/counter
+app/dump.rdb
+
+# IDE and OS
+.idea
+.vscode
+.DS_Store
+
+# Terraform / EKS (not needed for app image)
+eks-cluster
+
+# CI
+gitlab-ci.yml
+README.md

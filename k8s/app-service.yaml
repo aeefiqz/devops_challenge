@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: counter-app
+  namespace: counter-app
+  labels:
+    app: counter-app
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 8080
+      name: http
+  selector:
+    app: counter-app

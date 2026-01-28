@@ -1,0 +1,87 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"strconv"
+	"github.com/redis/go-redis/v9"
+)
+
+// RedisCounter represents a counter that stores its value in redis
+type RedisCounter struct {
+	rkey    string
+	rclient *redis.Client
+	ctx     context.Context
+}
+
+// Get returns the current value of the counter
+func (rc *RedisCounter) Get() (int64, error) {
+	result, err := rc.rclient.Get(rc.ctx, rc.rkey).Result()
+
+	if err == redis.Nil {
+		return 0, nil
+	}
+
+	if err != nil {
+		return 0, fmt.Errorf("error reading from redis: %v", err)
+	}
+
+	// confirm that the value is int and return it
+	cv, err := strconv.ParseInt(result, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("redis key: %q value: %q is not int: %v",
+			rc.rkey, result, err)
+	}
+	return cv, nil
+}
+
+// IncrBy increases the counter's value by "a" amount and reports the resulting value
+func (rc *RedisCounter) IncrBy(a int64) (int64, error) {
+	rv, err := rc.rclient.IncrBy(rc.ctx, rc.rkey, a).Result()
+	if err != nil {
+		return 0, fmt.Errorf("error incrementing value: %v", err)
+	}
+	return rv, nil
+}
+
+// Reset sets the counter value to 0.
+// It will always return 0 so use error to determine if successful.
+func (rc *RedisCounter) Reset() (int64, error) {
+	_, err := rc.rclient.Set(rc.ctx, rc.rkey, 0, 0).Result()
+	if err != nil {
+		return 0, err
+	}
+	return 0, nil
+}
+
+// RedisHealth checks the redis server connection using PING
+func (rc *RedisCounter) RedisHealth() error {
+	_, err := rc.rclient.Ping(rc.ctx).Result()
+	return err
+}
+
+// NewCounter creates a RedisCounter with the provided connection details.
+//
+// "raddr" format should be host:port
+//
+// "rpass" can be set to "" if no password authentication is required.
+func NewCounter(raddr, rpass, rkey string, rdb int) (*RedisCounter, error) {
+	ctx := context.Background()
+	// create the redis client and check it can connect
+	rclient := redis.NewClient(&redis.Options{
+		Addr:     raddr,
+		DB:       rdb,
+		Password: rpass,
+	})
+
+	// Check if rkey exist and create it if it does not.
+	_, err := rclient.Get(ctx, rkey).Result()
+	if err == redis.Nil {
+		_, err = rclient.Set(ctx, rkey, 0, 0).Result()
+	}
+	if err != nil {
+		err = fmt.Errorf("failed connecting to redis: %v", err)
+	}
+
+	return &RedisCounter{rclient: rclient, rkey: rkey, ctx: ctx}, err
+}
