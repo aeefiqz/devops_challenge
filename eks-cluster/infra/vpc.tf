@@ -8,8 +8,6 @@ module "vpc" {
 
   public_subnets       = slice(var.public_subnets, 0, var.public_subnets_count)
   private_subnets      = slice(var.private_subnets, 0, var.private_subnets_count)
-  public_subnet_names  = var.public_subnets_name
-  private_subnet_names = var.private_subnets_name
 
   enable_nat_gateway     = var.enable_nat_gateway
   single_nat_gateway     = var.single_nat_gateway

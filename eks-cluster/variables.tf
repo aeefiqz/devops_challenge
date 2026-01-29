@@ -87,3 +87,15 @@ variable "eks_version" {
   description = "Kubernetes version for EKS (e.g. 1.31, 1.33)."
   type        = string
 }
+
+# ------------------------------------------------------------------------------
+#S3 Bucket for Terraform State
+variable "bucket_name" {
+  description = "S3 bucket name for Terraform state storage."
+  type        = string
+}
+
+variable "dynamo_table" {
+  description = "DynamoDB table name for Terraform state locking."
+  type        = string
+}

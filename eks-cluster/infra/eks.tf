@@ -7,14 +7,24 @@ module "eks" {
   vpc_id                   = var.vpc_id
   subnet_ids               = var.subnet_ids
   control_plane_subnet_ids = var.control_plane_subnet_ids
-
-  cluster_endpoint_private_access = true
-  cluster_endpoint_public_access  = true
-
-  create_iam_role               = true
-  authentication_mode           = "API"
+  
+  authentication_mode = "API"
+  enable_cluster_creator_admin_permissions = true
   bootstrap_self_managed_addons = true
-  create_cluster_security_group = false
+  
+  create_cloudwatch_log_group = true
+  cluster_enabled_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+
+  create_iam_role = true
+  create_cluster_security_group = true
+  enable_security_groups_for_pods = true
+  cluster_endpoint_private_access = true
+  cluster_endpoint_public_access = true
+  
+  enable_irsa = true
+  attach_cluster_encryption_policy = false
+  create_node_security_group = false
+ 
 
   eks_managed_node_groups = {
     general = {
@@ -38,9 +48,11 @@ module "eks" {
       }
     }
   }
+  depends_on = [ aws_iam_role_policy_attachment.eks_cluster_policy ]
 
   tags = merge(var.tags, {
     Name        = var.cluster_name
     Environment = var.environment
   })
 }
+

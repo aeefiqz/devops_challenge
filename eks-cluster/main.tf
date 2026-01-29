@@ -1,3 +1,11 @@
+resource "aws_s3_bucket" "terraform-state" {
+  bucket = var.bucket_name
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+
 module "vpc" {
   source = "./modules/vpc"
 
@@ -28,15 +36,6 @@ module "eks" {
   control_plane_subnet_ids = module.vpc.private_subnet_ids
 
   tags = var.tags
-
-  depends_on = [module.vpc]
-}
-
-module "securitygroup" {
-  source = "./modules/securitygroup"
-
-  environment = var.environment
-  vpc_id      = module.vpc.vpc_id
 
   depends_on = [module.vpc]
 }

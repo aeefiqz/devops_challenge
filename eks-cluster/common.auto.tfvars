@@ -13,4 +13,7 @@ enable_nat_gateway   = true
 single_nat_gateway   = false
 enable_vpc_flow_logs = true
 
+bucket_name = "devopschallenge-tfstate-bucket"
+dynamo_table = "terraform-state"
+
 eks_version = "1.33"
