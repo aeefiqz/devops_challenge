@@ -68,12 +68,6 @@ variable "enable_vpc_flow_logs" {
   default     = true
 }
 
-variable "tags" {
-  description = "Additional tags for all resources."
-  type        = map(string)
-  default     = {}
-}
-
 # ------------------------------------------------------------------------------
 # EKS
 # ------------------------------------------------------------------------------
@@ -98,4 +92,10 @@ variable "bucket_name" {
 variable "dynamo_table" {
   description = "DynamoDB table name for Terraform state locking."
   type        = string
+}
+
+variable "tags" {
+  description = "Additional tags for all resources."
+  type        = map(string)
+  default     = {}
 }

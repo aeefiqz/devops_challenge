@@ -2,7 +2,7 @@
 resource "aws_security_group" "eks_cluster_sg" {
   name        = "${var.cluster_name}-cluster-sg"
   description = "Security group for EKS cluster control plane"
-  vpc_id      = aws_vpc.eks_vpc.id
+  vpc_id      = module.vpc.vpc
 
   # Allow all outbound traffic
   egress {

@@ -82,29 +82,8 @@ variable "eks_version" {
   default     = "1.24"
 }
 
-variable "environment" {
-  description = "Environment name (dev, uat, prod)"
-  type        = string
-  validation {
-    condition     = can(regex("^(dev|staging|uat|prod)$", var.environment))
-    error_message = "Environment must be one of: dev, staging, uat, prod."
-  }
-  
-}
-variable "vpc_id" {
-  description = "The ID of the VPC"
-  type        = string
-}
 
-variable "subnet_ids" {
-  description = "List of subnet IDs"
-  type        = list(string)
-}
 
-variable "control_plane_subnet_ids" {
-  description = "List of control plane subnet IDs"
-  type        = list(string)
-}
 
 variable "tags" {
   description = "Additional tags to apply to all resources"
