@@ -17,3 +17,4 @@ Pipeline stages: **build** → **deploy** → **rollback**.
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` for Terraform
 
 ### design
+![image](https://github.com/user-attachments/assets/d67717dd-95aa-4e7f-818c-e10dd6450004)
