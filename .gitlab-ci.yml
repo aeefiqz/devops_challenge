@@ -25,7 +25,7 @@ stages:
 
 build-go:
   stage: build
-  image: golang:1.23-alpine
+  image: golang:1.25-alpine
   script:
     - go mod download
     - go build -o /tmp/counter ./app
@@ -52,6 +52,7 @@ build-docker:
 
 .deploy-infra-base:
   stage: deploy
+  when: manual
   image:
     name: hashicorp/terraform:1.9
     entrypoint: [""]
@@ -71,7 +72,6 @@ deploy-infra-dev:
 
 deploy-infra-staging:
   extends: .deploy-infra-base
-  when: manual
   script:
     - terraform plan -var-file=environment/staging/staging.tfvars -input=false -out=tfplan
     - terraform apply -input=false -auto-approve tfplan
@@ -80,7 +80,6 @@ deploy-infra-staging:
 
 deploy-infra-uat:
   extends: .deploy-infra-base
-  when: manual
   script:
     - terraform plan -var-file=environment/uat/uat.tfvars -input=false -out=tfplan
     - terraform apply -input=false -auto-approve tfplan
@@ -89,7 +88,6 @@ deploy-infra-uat:
 
 deploy-infra-prod:
   extends: .deploy-infra-base
-  when: manual
   script:
     - terraform plan -var-file=environment/prod/prod.tfvars -input=false -out=tfplan
     - terraform apply -input=false -auto-approve tfplan
@@ -113,6 +111,7 @@ deploy-infra-prod:
 
 deploy-app-dev:
   extends: .deploy-app-base
+  when: manual
   variables:
     EKS_CLUSTER: $EKS_DEV
   script:
@@ -216,7 +215,7 @@ rollback-app-prod:
     - git checkout "${ROLLBACK_COMMIT:-$CI_COMMIT_BEFORE_SHA}"
     - terraform init -input=false
     - terraform plan -var-file=$TF_VAR_FILE -input=false -out=tfplan
-    - terraform apply -input=false -auto-approve tfplan
+    - terraform destroy -var-file=$TF_VAR_FILE -input=false -auto-approve 
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
 
