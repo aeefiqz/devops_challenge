@@ -2,7 +2,7 @@
 resource "aws_security_group" "eks_cluster_sg" {
   name        = "${var.cluster_name}-cluster-sg"
   description = "Security group for EKS cluster control plane"
-  vpc_id      = module.vpc.vpc
+  vpc_id      = module.eks-vpc.vpc_id
 
   # Allow all outbound traffic
   egress {
@@ -25,7 +25,7 @@ resource "aws_security_group" "eks_cluster_sg" {
 resource "aws_security_group" "eks_node_sg" {
   name        = "${var.cluster_name}-node-sg"
   description = "Security group for EKS worker nodes"
-  vpc_id      = var.vpc.id
+  vpc_id      = module.eks-vpc.vpc_id
 
   # Allow nodes to communicate with each other
   ingress {

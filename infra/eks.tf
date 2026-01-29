@@ -48,7 +48,7 @@ module "eks"  {
       }
     }
   }
-  depends_on = [ aws_iam_role_policy_attachment.eks_cluster_policy ]
+  depends_on = [ aws_iam_role_policy_attachment.eks_cluster_policy, module.eks-vpc ]
 
   tags = merge(var.tags, {
     Name        = var.cluster_name
