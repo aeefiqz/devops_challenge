@@ -8,13 +8,14 @@ Pipeline stages: **build** → **deploy** → **rollback**.
 
 - **Build**: Go build, Docker build & push to GitLab Container Registry.
 - **Deploy**:  
-  - **Infrastructure**: Terraform apply for dev (auto on `main`), staging/uat/prod (manual).  
+  - **Infrastructure**: Terraform apply for dev/staging/uat/prod (manual).  
   - **Application**: Deploy to EKS via `k8s/` manifests; dev auto, others manual.
 - **Rollback**: Manual jobs to undo app (`kubectl rollout undo`) or infra (Terraform apply from previous commit).
 
 ### Required CI/CD variables
 
-- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` for Terraform
+- `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` for Terraform provisioning
 
 ### design
-![image](https://github.com/user-attachments/assets/d67717dd-95aa-4e7f-818c-e10dd6450004)
+![image](https://github.com/user-attachments/assets/af18480b-8bcd-4fc9-b164-08f66a22bea2)
+
