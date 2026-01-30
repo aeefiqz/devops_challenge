@@ -12,6 +12,7 @@ module "eks-vpc" {
   enable_nat_gateway     = var.enable_nat_gateway
   single_nat_gateway     = var.single_nat_gateway
   one_nat_gateway_per_az = !var.single_nat_gateway
+  map_public_ip_on_launch = true
 
   enable_dns_hostnames = true
   enable_dns_support   = true
